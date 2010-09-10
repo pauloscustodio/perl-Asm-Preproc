@@ -1,0 +1,6 @@
+Revision history for Asm-Preproc
+
+0.01	2010-09-10
+		First version, based on CPU::Z80::Assembler::Preprocessor.
+		Made an independent module because it is not specific to the 
+		Z80 assembly language.
