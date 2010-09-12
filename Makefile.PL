@@ -12,6 +12,8 @@ WriteMakefile(
       : ()),
     PL_FILES            => {},
     PREREQ_PM => {
+		'File::Find'	=> 0,
+		'File::Slurp'	=> 9999.13,
 		'File::Spec'	=> 0,
         'Test::More' 	=> 0,
     },
