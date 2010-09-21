@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.1 2010/09/10 20:45:55 Paulo Exp $
+# $Id: Preproc.pm,v 1.2 2010/09/12 20:19:26 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -68,11 +68,20 @@ read in the given order.
 
 #------------------------------------------------------------------------------
 # preprocessor : has a list of stuff to read
-use constant { STACK => 0, PATH => 1 };
-use constant { ITER => 0, FILE => 1, LINE_NR => 2, LINE_INC => 3 };
-use constant { 
-	TOP 		=> -1,		# top of stack, i.e. current input file
-};
+# Perl 5.6 can only declare one constant at a time
+
+# $self attributes
+use constant STACK 		=> 0;
+use constant PATH 		=> 1;
+
+# $self->[STACK] attributes
+use constant ITER 		=> 0;
+use constant FILE 		=> 1;
+use constant LINE_NR 	=> 2;
+use constant LINE_INC 	=> 3;
+
+use constant TOP 		=> -1;		# top of stack, i.e. current input file
+
 
 sub new { 
 	my($class, @files) = @_;

@@ -1,4 +1,4 @@
-# $Id: Stream.pm,v 1.1 2010/09/10 20:45:55 Paulo Exp $
+# $Id: Stream.pm,v 1.2 2010/09/12 20:19:26 Paulo Exp $
 
 package Asm::Preproc::Stream;
 
@@ -63,7 +63,9 @@ Returns undef if the stream is empty.
 
 #------------------------------------------------------------------------------
 # attributes
-use constant { HEAD => 0, QUEUE => 1 };
+# Perl 5.6 can only declare one constant at a time
+use constant HEAD 	=> 0;
+use constant QUEUE 	=> 1;
 
 sub head        	{ $_[0][HEAD] }			# get head element
 
