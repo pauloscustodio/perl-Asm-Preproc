@@ -1,4 +1,4 @@
-# $Id: Stream.pm,v 1.3 2010/09/21 19:39:07 Paulo Exp $
+# $Id: Stream.pm,v 1.2 2010/09/12 20:19:26 Paulo Exp $
 
 package Asm::Preproc::Stream;
 
@@ -15,7 +15,7 @@ Asm::Preproc::Stream - Object to encapsulate an iterator that is able to unget
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 #------------------------------------------------------------------------------
 
@@ -63,63 +63,30 @@ Returns undef if the stream is empty.
 
 #------------------------------------------------------------------------------
 # attributes
-# Perl 5.6 can only declare one constant at a time
-use constant HEAD 	=> 0;
-use constant QUEUE 	=> 1;
-
-sub head        	{ $_[0][HEAD] }			# get head element
+sub head { $_[0][0] }			# get head element
 
 sub new {
     my($class, @input) = @_;
-    my $self = bless [undef, \@input], $class;
-    $self->_fill_head();
+    my $self = bless [@input], $class;
+    $self->_check_head();
     $self;
 }
 
 #------------------------------------------------------------------------------
-# retrieve the next element from the queue and fill the head
-sub _fill_head {
-    my($self) = @_;
-	my $queue = $self->[QUEUE];
-    $self->[HEAD] = undef;					# default : end of input
-    for (;;) {
-        return if !@$queue;                	# empty list
-        my $head = $queue->[0];
-        if (!defined $head) {
-            shift @$queue;                 	# skip undef elements
-        }
-        elsif (ref($head) eq 'CODE') {		# CODE element : call iterator
-			my $element = $head->();
-			
-			# if the iterator called unget() to insert some elements 
-			# at the head of the queue, then _fill_head() was called within 
-			# and put the first of the unget() elements in the head
-			# - put it back to the queue
-			if (defined (my $new_head = $self->[HEAD])) {
-				unshift @$queue, $new_head;
-				$self->[HEAD] = undef;
-			}
-				
-			if (!defined $element) {
-                shift @$queue;             	# iterator exhausted, drop it
-            }
-			elsif (ref($element) eq 'CODE') {
-				unshift @$queue, $element;	# insert sub-iterator at 
-											# head of queue
-			}
-            else {                 			# got a next element
-                $self->[HEAD] = $element;	# leave ready for next get()
-                return;        
-            }
-        }
-        else {
-            $self->[HEAD] = $head;
-            shift @$queue;                 			# drop element
-            return;
-        }
-    }    
+# check if the head is an iterator, if yes extract the item and put it at head
+# of queue
+sub _check_head {
+	my($self) = @_;
+    while (@$self && ref(my $head = $self->[0]) eq 'CODE') {
+		if (defined(my $element = $head->())) {
+			unshift @$self, $element;		# insert at head of list
+		}
+		else {								# iterator exhausted, drop it
+			shift @$self;
+		}
+	}
 }
-
+				
 #------------------------------------------------------------------------------
 
 =head2 get
@@ -134,9 +101,9 @@ Returns undef if the stream is empty
 
 sub get {
     my($self) = @_;
-    my $element = $self->[HEAD];
-    $self->_fill_head;
-    return $element;
+    my $head = shift @$self;
+    $self->_check_head;
+    return $head;
 }
 
 #------------------------------------------------------------------------------
@@ -159,11 +126,8 @@ will result in the stream 1,2,3 being returned from the stream.
 
 sub unget {
     my($self, @input) = @_;
-	my $queue = $self->[QUEUE];
-	my $head = $self->[HEAD];
-	unshift @$queue, $head if defined($head);
-    unshift @$queue, @input;					# save current head
-    $self->_fill_head;
+    unshift @$self, @input;					# save current head
+    $self->_check_head;
 }
 
 #------------------------------------------------------------------------------

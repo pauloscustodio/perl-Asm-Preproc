@@ -1,4 +1,4 @@
-# $Id: Line.pm,v 1.3 2010/09/21 19:39:07 Paulo Exp $
+# $Id: Line.pm,v 1.2 2010/09/12 20:19:26 Paulo Exp $
 
 package Asm::Preproc::Line;
 
@@ -15,7 +15,7 @@ Asm::Preproc::Line - One line of text retrieved from the input
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 #------------------------------------------------------------------------------
 
@@ -66,10 +66,13 @@ Creates an identical copy as a new object.
 =cut
 
 #------------------------------------------------------------------------------
-# Perl 5.6 can only declare one constant at a time
-use constant TEXT 		=> 0;
-use constant FILE 		=> 1;
-use constant LINE_NR	=> 2;
+use Class::XSAccessor::Array {
+	accessors 		=> {
+		text		=> 0,
+		file		=> 1,
+		line_nr		=> 2,
+	},
+};
 
 sub new { 
 	#my($class, $text, $file, $line_nr) = @_;
@@ -82,11 +85,6 @@ sub clone {
 	bless [@$self], ref($self);
 }
 
-sub text    { $#_ ? $_[0][TEXT   ] = $_[1] : $_[0][TEXT   ] }
-sub rtext   { \($_[0][TEXT]) }
-
-sub file    { $#_ ? $_[0][FILE   ] = $_[1] : $_[0][FILE   ] }
-sub line_nr { $#_ ? $_[0][LINE_NR] = $_[1] : $_[0][LINE_NR] }
 #------------------------------------------------------------------------------
 
 =head2 is_equal
@@ -100,9 +98,9 @@ Compares two line objects. Overloads the '==' operator.
 #------------------------------------------------------------------------------
 sub is_equal { my($self, $other) = @_;
 	no warnings 'uninitialized';
-	return $self->[TEXT]    eq $other->[TEXT]    &&
-		   $self->[LINE_NR] == $other->[LINE_NR] &&
-		   $self->[FILE]    eq $other->[FILE];
+	return $self->text    eq $other->text    &&
+		   $self->line_nr == $other->line_nr &&
+		   $self->file    eq $other->file;
 }
 
 use overload '==' => \&is_equal, fallback => 1;
