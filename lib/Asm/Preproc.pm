@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.3 2010/09/21 19:39:07 Paulo Exp $
+# $Id: Preproc.pm,v 1.4 2010/09/21 19:39:50 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -19,13 +19,8 @@ use File::Spec;
 use Asm::Preproc::Line;
 use Asm::Preproc::Stream;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
-#------------------------------------------------------------------------------
-# TODO :
-# 	- macros; implies tokenizer
-#	- asmpp command line
-#	- does conditional text expansion
 #------------------------------------------------------------------------------
 
 =head1 SYNOPSIS
@@ -67,27 +62,38 @@ read in the given order.
 =cut
 
 #------------------------------------------------------------------------------
-# preprocessor : has a list of stuff to read
-# Perl 5.6 can only declare one constant at a time
+# Asm::Preproc::File : current file being read
+use Class::XSAccessor::Array {
+	class			=> 'Asm::Preproc::File',
+	accessors		=> {
+		iter		=> 0,		# iter() to read each line
+		file		=> 1,		# file name
+		line_nr		=> 2,		# current line number
+		line_inc	=> 3,		# line number increment
+	},
+};
+sub Asm::Preproc::File::new {
+	#my($class, $iter, $file) = @_;
+	my $class = shift;
+	bless [@_, 0, 1], $class;
+}
 
-# $self attributes
-use constant STACK 		=> 0;
-use constant PATH 		=> 1;
-
-# $self->[STACK] attributes
-use constant ITER 		=> 0;
-use constant FILE 		=> 1;
-use constant LINE_NR 	=> 2;
-use constant LINE_INC 	=> 3;
+#------------------------------------------------------------------------------
+# Asm::Preproc : stack of stuff to read
+use Class::XSAccessor::Array {
+	accessors		=> {
+		_stack		=> 0,		# stack of Asm::Preproc::File
+		_path		=> 1,		# path of search directories
+	},
+};
 
 use constant TOP 		=> -1;		# top of stack, i.e. current input file
-
 
 sub new { 
 	my($class, @files) = @_;
 	my $self = bless [
-				[],			# STACK of [iter(), file, line_nr, line_inc]
-				[],			# PATH of search directories
+				[],			# stack
+				[],			# path
 		], $class;
 	$self->include($_) for reverse @files;
 	return $self;
@@ -101,7 +107,7 @@ Returns the list of directories to search in sequence for source files.
 =cut
 
 #------------------------------------------------------------------------------
-sub path { @{$_[0][PATH]} }
+sub path { @{$_[0]->_path} }
 #------------------------------------------------------------------------------
 
 =head2 add_path
@@ -113,7 +119,7 @@ Adds the given directories to the path searched for include files.
 #------------------------------------------------------------------------------
 sub add_path {
 	my($self, @dirs) = @_;
-	push @{$self->[PATH]}, @dirs;
+	push @{$self->_path}, @dirs;
 }
 #------------------------------------------------------------------------------
 
@@ -133,7 +139,7 @@ sub path_search {
 	
 	return $file if -f $file;	# found
 	
-	for my $dir (@{$self->[PATH]}) {
+	for my $dir (@{$self->_path}) {
 		my $full_path = File::Spec->catfile($dir, $file);
 		return $full_path if -f $full_path;
 	}
@@ -163,7 +169,7 @@ sub include {
 	my $full_path = $self->path_search($file);
 	
 	# check for include loop
-	if (grep {$_->[FILE] eq $full_path} @{$self->[STACK]}) {
+	if (grep {$_->file eq $full_path} @{$self->_stack}) {
 		($from_line || Asm::Preproc::Line->new)
 			->error("%include loop")
 	}
@@ -243,6 +249,14 @@ sub include_list {
 }
 
 #------------------------------------------------------------------------------
+# prepare the object to read the given iterator and file name
+sub _push_iter {
+	my($self, $iter, $file) = @_;
+	
+	# new file in the stack
+	push @{$self->_stack}, Asm::Preproc::File->new($iter, $file);
+}
+#------------------------------------------------------------------------------
 
 =head2 getline
 
@@ -256,41 +270,30 @@ Returns C<undef> at the end of the input.
 =cut
 
 #------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-# prepare the object to read the given iterator and file name
-sub _push_iter {
-	my($self, $iter, $file) = @_;
-	
-	# new file in the stack
-	push @{$self->[STACK]}, 
-		[$iter, $file, 0, 1];	# iter, file, line_nr, line_inc
-}
-
-#------------------------------------------------------------------------------
 # return next line as a Asm::Preproc::Line object
 sub getline {
 	my($self) = @_;
 
 	while (1) {
-		return undef unless @{$self->[STACK]};	# no more files
-		my $top = $self->[STACK][TOP];
+		return undef unless @{$self->_stack};	# no more files
+		my $top = $self->_stack->[TOP];
 
 		# read line
-		my $text = $top->[ITER]->();
+		my $text = $top->iter->();
 		if (! defined $text) {					# file finished, read next
-			pop @{$self->[STACK]};
+			pop @{$self->_stack};
 			next;
 		}
 
 		# inc line number, save it to use as the line_nr of a multi-line
 		# continuation
-		my $line_nr = $top->[LINE_NR] += $top->[LINE_INC];
+		my $line_nr = $top->line_nr( $top->line_nr + $top->line_inc );
 
-		# while line ends in \\, remove all blanks around it, incl. \r \n
-		while ($text =~ s/ \s* \\ \s* \z / /x) {
-			my $next = $top->[ITER]->();
-			$top->[LINE_NR] += $top->[LINE_INC];
+		# while line ends in \\, remove all blanks before it and \r \n after
+		# the line contains at most one \n, due to include_list() iterator
+		while ($text =~ s/ \s* \\ [\r\n]* \z / /x) {
+			my $next = $top->iter->();
+			$top->line_nr( $top->line_nr + $top->line_inc );
 			
 			defined($next) or last;		# no more input, ignore last \\
 			$text .= $next;
@@ -300,7 +303,7 @@ sub getline {
 		$text =~ s/ \s* \z /\n/x;		# any ending blanks replaced by \n
 
 		# line to be returned, is used in %include below
-		my $line = Asm::Preproc::Line->new($text, $top->[FILE], $line_nr);
+		my $line = Asm::Preproc::Line->new($text, $top->file, $line_nr);
 		
 		# check for pre-processor directives
 		if ($text =~ /^ \s* [\#\%] /gcix) {
@@ -308,21 +311,21 @@ sub getline {
 				# %line n+m file
 				# #line n "file"
 				if ($text =~ / \G \s+ (\d+) /gcix) {	# line_nr
-					$top->[LINE_NR] = $1;
+					$top->line_nr( $1 );
 
 					if ($text =~ / \G \+ (\d+) /gcix) {	# optional line_inc
-						$top->[LINE_INC] = $1;
+						$top->line_inc( $1 );
 					}
 					else {
-						$top->[LINE_INC] = 1;
+						$top->line_inc( 1 );
 					}
 
 					if ($text =~ / \G \s+ \"? ([^\"\s]+) \"? /gcix) {	# file
-						$top->[FILE] = $1;
+						$top->file( $1 );
 					}
 
 					# next line in nr+inc
-					$top->[LINE_NR] -= $top->[LINE_INC];		
+					$top->line_nr( $top->line_nr - $top->line_inc );
 					next;		# get next line
 				}
 			}
