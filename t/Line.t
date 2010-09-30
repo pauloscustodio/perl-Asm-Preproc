@@ -1,6 +1,6 @@
 #!perl
 
-# $Id: Line-new.t,v 1.4 2009/10/26 20:41:16 Paulo Custodio Exp $
+# $Id: Line.t,v 1.1 2010/09/10 20:45:56 Paulo Exp $
 
 use strict;
 use warnings;
@@ -16,6 +16,7 @@ my $line2;
 # new / clone
 isa_ok 	$line = Asm::Preproc::Line->new(),
 		'Asm::Preproc::Line';
+
 is		$line->text, 	undef, 		"no text";
 is		$line->file, 	undef, 		"no file";
 is		$line->line_nr, undef, 		"no line_nr";
@@ -44,6 +45,35 @@ is		$line->file, 	'', 		"no file";
 is		$line2->text, 	"text\n", 	"text";
 is		$line2->line_nr, 3,			"line_nr";
 is		$line2->file, 	"f1", 		"file";
+
+$line->text("ola");
+
+is		$line->text, 	"ola", 		"no text";
+is		$line->line_nr, '', 		"no line_nr";
+is		$line->file, 	'', 		"no file";
+
+$line->text(undef);
+
+is		$line->text, 	undef, 		"no text";
+is		$line->line_nr, '', 		"no line_nr";
+is		$line->file, 	'', 		"no file";
+
+
+#------------------------------------------------------------------------------
+# regexp match on text
+isa_ok 	$line = Asm::Preproc::Line->new("text\n", "f1", 3),
+		'Asm::Preproc::Line';
+ok $line->text =~ /\G(.)/gcxs, "match";
+is $1, "t", "t";
+ok $line->text =~ /\G(.)/gcxs, "match";
+is $1, "e", "e";
+ok $line->text =~ /\G(.)/gcxs, "match";
+is $1, "x", "x";
+ok $line->text =~ /\G(.)/gcxs, "match";
+is $1, "t", "t";
+ok $line->text =~ /\G(.)/gcxs, "match";
+is $1, "\n", "newline";
+ok $line->text =~ /\G\z/gcxs, "match";
 
 #------------------------------------------------------------------------------
 # error

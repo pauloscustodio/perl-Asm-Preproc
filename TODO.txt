@@ -1,0 +1,40 @@
+#------------------------------------------------------------------------------
+# TODO :
+# 	- macros; implies tokenizer
+#	- asmpp command line
+#	- does conditional text expansion
+#------------------------------------------------------------------------------
+
+- Regexp::Grammars for preprocessor?
+
+- conditional text expansion
+- macro substitution
+- tokenizer
+- remove comments
+
+- get line from current file
+- handle %line
+- handle %include
+- save %define
+
+%define MACRO TEXT
+%define MACRO(A,B,C) TEXT
+	
+	Need to tokenize text line, replace ID token by macro expansion
+	Defines A, B, C as temporary %define during execution of macro
+
+_getline() : 
+	get one complete line from the current file
+	parse all preprocessor commands
+	handles %if/%else/%endif
+	
+_gettoken() :
+	reads lines from _getline(), expands macros
+
+getline() :
+	calls _gettoken() to do macro expansion
+	concatenates all in one line to return
+	
+gettoken() :
+	calls _gettoken(), ignores blanks
+

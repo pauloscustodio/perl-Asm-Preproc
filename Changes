@@ -3,6 +3,7 @@ Revision history for Asm-Preproc
 0.04	2010-09-30
 		- Add tokenizer Asm::Preproc::Lexer
 		- Use Class::XSAccessor::Array for objects
+		- Asm::Preproc::Stream is simpler and faster
 
 0.03	2010-09-21
 		- Perl 5.6 can only declare one constant at a time; replace 
