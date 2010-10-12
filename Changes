@@ -1,5 +1,9 @@
 Revision history for Asm-Preproc
 
+0.05	2010-10-12
+		- Solved problem with test scripts: 
+		  Bareword "done_testing" not allowed while "strict subs" in use
+
 0.04	2010-09-30
 		- Add tokenizer Asm::Preproc::Lexer
 		- Use Class::XSAccessor::Array for objects

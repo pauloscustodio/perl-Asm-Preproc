@@ -1,5 +1,5 @@
 #!perl
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 use File::Find;
 use File::Slurp;

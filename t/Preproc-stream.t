@@ -23,4 +23,4 @@ is_deeply $s->get, Asm::Preproc::Line->new("2\n", 		"-", 	2);
 is_deeply $s->get, Asm::Preproc::Line->new("3\n", 		"-", 	3);
 is $s->get, undef;
 
-done_testing;
+done_testing();

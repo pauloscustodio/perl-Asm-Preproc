@@ -1,6 +1,6 @@
 #!perl
 
-# $Id: Token-error.t,v 1.5 2010/09/12 21:09:27 Paulo Exp $
+# $Id: Token-error.t,v 1.1 2010/09/30 23:00:49 Paulo Exp $
 
 use strict;
 use warnings;
@@ -121,4 +121,4 @@ test_error("test error\n",
 
 
 is $warn, undef, "no warnings";
-done_testing;
+done_testing();

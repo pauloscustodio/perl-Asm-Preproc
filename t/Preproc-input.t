@@ -106,4 +106,4 @@ test_getline("3\n", 	"-", 	7);
 test_getline("4\n", 	"-", 	8);
 test_eof();
 
-done_testing;
+done_testing();

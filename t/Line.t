@@ -1,6 +1,6 @@
 #!perl
 
-# $Id: Line.t,v 1.1 2010/09/10 20:45:56 Paulo Exp $
+# $Id: Line.t,v 1.2 2010/09/30 22:59:45 Paulo Exp $
 
 use strict;
 use warnings;
@@ -169,4 +169,4 @@ isa_ok 	$line = Asm::Preproc::Line->new("text\n", "f1", 3),
 		'Asm::Preproc::Line';
 like "$line", qr/^Asm::Preproc::Line=ARRAY\(0x[0-9a-f]+\)$/i, "overload fallback";
 
-done_testing;
+done_testing();

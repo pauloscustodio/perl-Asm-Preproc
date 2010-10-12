@@ -32,4 +32,4 @@ test_getline("5a 5b 5c\n", 		"-", 	7);
 test_getline("6\n", 			"-", 	10);
 test_eof();
 
-done_testing;
+done_testing();

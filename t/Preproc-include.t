@@ -76,4 +76,4 @@ eval { $pp->getline };
 is $@, "t/data/f08.asm(1) : error: %include loop\n",
 			"%include loop";
 
-done_testing;
+done_testing();

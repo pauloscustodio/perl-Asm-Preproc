@@ -1,6 +1,6 @@
 #!perl
 
-# $Id: Stream-1.t,v 1.4 2009/10/26 20:41:17 Paulo Custodio Exp $
+# $Id: Stream.t,v 1.1 2010/09/10 20:45:56 Paulo Exp $
 
 use strict;
 use warnings;
@@ -104,4 +104,4 @@ sub t_get (@) {
 }
 
 
-done_testing;
+done_testing();

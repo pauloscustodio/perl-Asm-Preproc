@@ -31,7 +31,7 @@ test_getline("z.asm:45 x1\n",			"z.asm",	45);
 test_getline("z.asm:45 x2\n",			"z.asm",	45);
 test_eof();
 
-done_testing;
+done_testing();
 
 __DATA__
 line 1, no file

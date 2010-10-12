@@ -1,6 +1,6 @@
 #!perl
 
-# $Id: Token-new.t,v 1.5 2010/09/12 21:09:27 Paulo Exp $
+# $Id: Token-new.t,v 1.1 2010/09/30 23:00:49 Paulo Exp $
 
 use strict;
 use warnings;
@@ -58,4 +58,4 @@ is		$token->line->text, 	'', 	"no line text";
 is		$token->line->line_nr, 	'', "no line line_nr";
 is		$token->line->file, 	'', 	"no line file";
 
-done_testing;
+done_testing();
