@@ -18,7 +18,7 @@ WriteMakefile(
 		'File::Find'				=> 0,
 		'File::Slurp'				=> 9999.13,
 		'File::Spec'				=> 0,
-        'Test::More' 				=> 0,
+        'Test::More' 				=> 0.96,	# needs done_testing()
 		'Text::Template'			=> 1.45,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
