@@ -1,4 +1,4 @@
-# $Id: Stream.pm,v 1.5 2010/09/30 22:58:04 Paulo Exp $
+# $Id: Stream.pm,v 1.6 2010/10/12 21:18:13 Paulo Exp $
 
 package Asm::Preproc::Stream;
 
@@ -15,7 +15,7 @@ Asm::Preproc::Stream - Object to encapsulate an iterator that is able to unget
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 #------------------------------------------------------------------------------
 
