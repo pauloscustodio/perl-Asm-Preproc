@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.8 2013/06/30 01:35:34 Paulo Exp $
+# $Id: Preproc.pm,v 1.9 2013/06/30 19:07:45 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -326,42 +326,54 @@ sub getline {
 		my $line = Asm::Preproc::Line->new($text, $top->file, $line_nr);
 		
 		# check for pre-processor directives
-		if (my $file = $self->_match_include($line)) {
-			$self->include($file, $line);
+		if (my $include_file = $self->_match_include($line)) {
+			$self->include($include_file, $line);
 			next;		# get next line
 		}
-
+		elsif (my($line_nr, $line_inc, $file) = $self->_match_line($line)) {
+			defined($line_nr) 	and $top->line_nr( $line_nr );
+			defined($line_inc) 	?   $top->line_inc( $line_inc )
+								:   $top->line_inc( 1 );
+			defined($file) 		and $top->file( $file );
+			
+			# next line in nr+inc
+			$top->line_nr( $top->line_nr - $top->line_inc );
+			next;		# get next line
+		}
+		
 		if ($text =~ /^ \s* [\#\%] /gcix) {
-			if ($text =~ / \G line /gcix) {
-				# %line n+m file
-				# #line n "file"
-				if ($text =~ / \G \s+ (\d+) /gcix) {	# line_nr
-					$top->line_nr( $1 );
-
-					if ($text =~ / \G \+ (\d+) /gcix) {	# optional line_inc
-						$top->line_inc( $1 );
-					}
-					else {
-						$top->line_inc( 1 );
-					}
-
-					if ($text =~ / \G \s+ \"? ([^\"\s]+) \"? /gcix) {	# file
-						$top->file( $1 );
-					}
-
-					# next line in nr+inc
-					$top->line_nr( $top->line_nr - $top->line_inc );
-					next;		# get next line
-				}
-			}
-			else {
-				# ignore other unknown directives
-				next;		# get next line
-			}
+			next;
 		}
-		else {
-			# TODO: macro expansion
-		}
+#			if ($text =~ / \G line /gcix) {
+#				# %line n+m file
+#				# #line n "file"
+#				if ($text =~ / \G \s+ (\d+) /gcix) {	# line_nr
+#					$top->line_nr( $1 );
+#
+#					if ($text =~ / \G \+ (\d+) /gcix) {	# optional line_inc
+#						$top->line_inc( $1 );
+#					}
+#					else {
+#						$top->line_inc( 1 );
+#					}
+#
+#					if ($text =~ / \G \s+ \"? ([^\"\s]+) \"? /gcix) {	# file
+#						$top->file( $1 );
+#					}
+#
+#					# next line in nr+inc
+#					$top->line_nr( $top->line_nr - $top->line_inc );
+#					next;		# get next line
+#				}
+#			}
+#			else {
+#				# ignore other unknown directives
+#				next;		# get next line
+#			}
+#		}
+#		else {
+#			# TODO: macro expansion
+#		}
 		
 		# return complete line
 		return $line;
@@ -405,7 +417,8 @@ sub config_line_continuation { 1 }
 =head2 config_include_re
 
 Regular expression to match an include preprocessor statement and return 
-$1 with the included filename.
+$1 with the included filename. $1 may be undefined if the include statement
+is not followed by a file name.
 
 default = %include | #include 'FILE' | "FILE" | <FILE> | FILE 
 
@@ -418,28 +431,64 @@ sub config_include_re {
 		  | \s* \' ([^\'\s]+) \'
 		  | \s* \" ([^\"\s]+) \"
 		  | \s+    (\S+)
-		  | \s*    (\S*)			# error case: empty file name
-		  ) /ix;
+		  )?
+	  /ix;
 }
 
 sub _match_include {
 	my($self, $line) = @_;
 	my $re = $self->config_include_re;
 	if ($line->text =~ /$re/) {
-		if ($1 eq '') {
-			$line->error("%include expects a file name\n");
-			return;
-		}
-		else {
-			return $1;
-		}
+		return $1 if defined($1) && $1 ne '';
+		$line->error("%include expects a file name\n");
+		return;
 	}
 	else {
 		return;
 	}
 }
+#------------------------------------------------------------------------------
+
+=head2 config_line_re
+
+Regular expression to match a line preprocessor statement and return 
+$1 with the new line number, $2 with the line increment, and
+$3 with the filename. All three results may be undefined, if the corresponding
+element is missing.
+
+default = %line | #line NN[+NN] 'FILE' | "FILE" | FILE 
+
+=cut
 
 #------------------------------------------------------------------------------
+sub config_line_re { 
+	qr/ ^ \s* [\#\%] LINE 
+	    (?: \s+ (\d+)					# line number
+		    (?: \s* \+ \s* (\d+) )?		# optional line increment
+			(?| \s+ \' ([^\'\s]+) \'	# file name
+			  | \s+ \" ([^\"\s]+) \"	# file name
+			  | \s+    (\S+)			# file name
+			)?							# optional file name
+		)?								# optional NN+NN FILE
+	  /ix;
+}
+
+sub _match_line {
+	my($self, $line) = @_;
+	my($line_nr, $line_inc, $file);
+	my $re = $self->config_line_re;
+	if (($line_nr, $line_inc, $file) = $line->text =~ /$re/) {
+		for ($line_nr, $line_inc, $file) {
+			$_ = undef if defined($_) && $_ eq '';	# make undef if ''
+		}
+		return ($line_nr, $line_inc, $file);
+	}
+	else {
+		return;
+	}
+}
+#------------------------------------------------------------------------------
+
 
 
 =head1 PREPROCESSING

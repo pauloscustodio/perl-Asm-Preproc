@@ -1,7 +1,8 @@
 	* Parse different eol combinations in input file (\r, \n, \r\n, \n\r) and
 	  convert all to \n. Read files in binary mode in chunks of 8K.
 	* Add option to do or not line continuation on lines ended with \\.
-	* Add option to define include statement format.
+	* Add option to define %include statement format.
+	* Add option to define %line statement format.
 
 0.06	2010-10-15
 	Bug Fixes
