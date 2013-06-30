@@ -41,4 +41,9 @@ sub test_eof {
 	}
 }
 
+sub temp_file {
+	my $file = "$0.tmp"; $file =~ s/\\/\//g;
+	return $file;
+}
+
 1;

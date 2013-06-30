@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.7 2010/10/15 15:55:21 Paulo Exp $
+# $Id: Preproc.pm,v 1.8 2013/06/30 01:35:34 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -322,10 +322,15 @@ sub getline {
 		# normalize eol
 		$text =~ s/ \s* \z /\n/x;		# any ending blanks replaced by \n
 
-		# line to be returned, is used in %include below
+		# line to be returned
 		my $line = Asm::Preproc::Line->new($text, $top->file, $line_nr);
 		
 		# check for pre-processor directives
+		if (my $file = $self->_match_include($line)) {
+			$self->include($file, $line);
+			next;		# get next line
+		}
+
 		if ($text =~ /^ \s* [\#\%] /gcix) {
 			if ($text =~ / \G line /gcix) {
 				# %line n+m file
@@ -347,24 +352,6 @@ sub getline {
 					# next line in nr+inc
 					$top->line_nr( $top->line_nr - $top->line_inc );
 					next;		# get next line
-				}
-			}
-			elsif ($text =~ / \G include /gcix) {
-				# %include <file>
-				# #include 'file'
-				# %include "file"
-				# #include  file 
-				if ($text =~ / \G \s+	(?: \< ([^\>]+) \>  | 
-											\' ([^\']+) \'  | 
-											\" ([^\"]+) \"  |
-											   (\S+)
-										) /gcix) {
-					my $file = $1 || $2 || $3 || $4;	
-					$self->include($file, $line);
-					next;		# get next line
-				}
-				else {
-					$line->error("%include expects a file name\n");
 				}
 			}
 			else {
@@ -404,13 +391,54 @@ can be overloaded to change the default behaviour.
 
 =head2 config_line_continuation 
 
-(default = TRUE) Set to true to join lines ending with backslash (C<\>) 
+Set to true to join lines ending with backslash (C<\>) 
 with the following line.
+
+default = TRUE
 
 =cut
 
 #------------------------------------------------------------------------------
 sub config_line_continuation { 1 }
+#------------------------------------------------------------------------------
+
+=head2 config_include_re
+
+Regular expression to match an include preprocessor statement and return 
+$1 with the included filename.
+
+default = %include | #include 'FILE' | "FILE" | <FILE> | FILE 
+
+=cut
+
+#------------------------------------------------------------------------------
+sub config_include_re { 
+	qr/ ^ \s* [\#\%] INCLUDE 
+	    (?| \s* \< ([^\>\s]+) \>
+		  | \s* \' ([^\'\s]+) \'
+		  | \s* \" ([^\"\s]+) \"
+		  | \s+    (\S+)
+		  | \s*    (\S*)			# error case: empty file name
+		  ) /ix;
+}
+
+sub _match_include {
+	my($self, $line) = @_;
+	my $re = $self->config_include_re;
+	if ($line->text =~ /$re/) {
+		if ($1 eq '') {
+			$line->error("%include expects a file name\n");
+			return;
+		}
+		else {
+			return $1;
+		}
+	}
+	else {
+		return;
+	}
+}
+
 #------------------------------------------------------------------------------
 
 
@@ -463,7 +491,7 @@ Inspired in the Netwide Assembler, L<http://www.nasm.us/>
 
 =head1 LICENSE and COPYRIGHT
 
-Copyright (c) 2010 Paulo Custodio.
+Copyright (c) 2010-2013 Paulo Custodio.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

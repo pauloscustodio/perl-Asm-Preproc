@@ -15,7 +15,7 @@ my $input = join '', @input;
 
 #------------------------------------------------------------------------------
 # test input from file
-my $file = "$0.tmp"; $file =~ s/\\/\//g;
+my $file = temp_file();
 
 # no file
 unlink($file);

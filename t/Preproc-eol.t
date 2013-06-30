@@ -9,7 +9,7 @@ use File::Slurp;
 require_ok 't/utils.pl';
 
 our $pp;
-my $file = "$0.tmp"; $file =~ s/\\/\//g;
+my $file = temp_file();
 
 #------------------------------------------------------------------------------
 # test eol normalization and joining continuation lines

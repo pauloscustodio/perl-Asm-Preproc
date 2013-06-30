@@ -9,6 +9,7 @@ use File::Slurp;
 require_ok 't/utils.pl';
 
 our $pp;
+my $file = temp_file();
 
 #------------------------------------------------------------------------------
 # pass two files to constructor, read in correct order
@@ -45,6 +46,21 @@ test_getline("world\n",		't/data/f02.asm',	1);
 test_getline("hello\n",		't/data/f01.asm',	1);
 test_getline("world\n",		't/data/f02.asm',	1);
 test_eof();
+
+#------------------------------------------------------------------------------
+# config_include_re
+{ 
+	package MyPreproc;
+	use parent 'Asm::Preproc';
+	sub config_include_re { qr/ ^ \s* INCLUDE \s+ (\S+) /ix }
+}
+write_file($file, " include t/data/f01.asm \n include t/data/f02.asm ");
+isa_ok $pp = MyPreproc->new(), 'Asm::Preproc';
+$pp->include($file);
+test_getline("hello\n",		't/data/f01.asm',	1);
+test_getline("world\n",		't/data/f02.asm',	1);
+test_eof();
+ok unlink($file), "unlink $file";
 
 #------------------------------------------------------------------------------
 # path_search
