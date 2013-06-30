@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.9 2013/06/30 19:07:45 Paulo Exp $
+# $Id: Preproc.pm,v 1.10 2013/06/30 22:56:02 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -340,40 +340,9 @@ sub getline {
 			$top->line_nr( $top->line_nr - $top->line_inc );
 			next;		# get next line
 		}
-		
-		if ($text =~ /^ \s* [\#\%] /gcix) {
-			next;
+		elsif ($self->_match_ignore_line($line)) {
+			next;		# get next line
 		}
-#			if ($text =~ / \G line /gcix) {
-#				# %line n+m file
-#				# #line n "file"
-#				if ($text =~ / \G \s+ (\d+) /gcix) {	# line_nr
-#					$top->line_nr( $1 );
-#
-#					if ($text =~ / \G \+ (\d+) /gcix) {	# optional line_inc
-#						$top->line_inc( $1 );
-#					}
-#					else {
-#						$top->line_inc( 1 );
-#					}
-#
-#					if ($text =~ / \G \s+ \"? ([^\"\s]+) \"? /gcix) {	# file
-#						$top->file( $1 );
-#					}
-#
-#					# next line in nr+inc
-#					$top->line_nr( $top->line_nr - $top->line_inc );
-#					next;		# get next line
-#				}
-#			}
-#			else {
-#				# ignore other unknown directives
-#				next;		# get next line
-#			}
-#		}
-#		else {
-#			# TODO: macro expansion
-#		}
 		
 		# return complete line
 		return $line;
@@ -489,7 +458,26 @@ sub _match_line {
 }
 #------------------------------------------------------------------------------
 
+=head2 config_ignore_line_re
 
+Regular expression to match a preprocessor statement to be ignored. Also
+used to ignore an all-comment line
+
+default = % | # | ;
+
+=cut
+
+#------------------------------------------------------------------------------
+sub config_ignore_line_re { 
+	qr/ ^ \s* [\#\%\;] /ix;
+}
+
+sub _match_ignore_line {
+	my($self, $line) = @_;
+	my $re = $self->config_ignore_line_re;
+	return $line->text =~ /$re/;
+}
+#------------------------------------------------------------------------------
 
 =head1 PREPROCESSING
 

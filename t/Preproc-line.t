@@ -83,6 +83,9 @@ __DATA__
 line 1, no file
 line 2, no file
 line 3, no file
+%ignored
+#ignored
+;ignored
 %line 1+1 file.asm
 file.asm:1: line 1
 file.asm:2: line 2
