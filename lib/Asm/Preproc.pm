@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.6 2010/10/12 21:18:12 Paulo Exp $
+# $Id: Preproc.pm,v 1.7 2010/10/15 15:55:21 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -88,12 +88,16 @@ use Class::XSAccessor::Array {
 };
 
 use constant TOP 		=> -1;		# top of stack, i.e. current input file
+use constant BLOCK_SZ	=> 0x2000;	# amount of bytes to read at a time from file
+
+my $EOL_RE 		= qr/(?:\r\n|\n\r|\r|\n)/;
+my $NOT_EOL_RE 	= qr/[^\r\n]/;
 
 sub new { 
 	my($class, @files) = @_;
 	my $self = bless [
-				[],			# stack
-				[],			# path
+				[],				# stack
+				[],				# path
 		], $class;
 	$self->include($_) for reverse @files;
 	return $self;
@@ -174,19 +178,34 @@ sub include {
 			->error("%include loop")
 	}
 	
-	# open the file
+	# open the file in binary mode, to read different eol terminators
 	open(my $fh, $full_path) or
 		($from_line || Asm::Preproc::Line->new)
 		->error("unable to open input file '$full_path'");
-		
-	# create a new iterator to read file lines
+	binmode($fh);
+	
+	# create a new iterator to read file lines in blocks
+	my $text = "";
 	my $iter = sub { 
-		return undef unless $fh;
-		my $text = <$fh>;
-		defined($text) and return $text;
-
-		undef $fh;				# close fh at end of file
-		return undef;
+		for (;;) {
+			return undef unless $fh;
+			for ($text) {
+				# return next line
+				if (/ \G ( $NOT_EOL_RE* $EOL_RE ) /gcx) {
+					return $1;
+				}
+			
+				# append a new chunk from file
+				$_ = substr($_, pos||0);		# drop matched text
+				my $num_read = read($fh, $_, BLOCK_SZ, length($_));
+				
+				# end of input
+				if ($num_read == 0) {
+					undef $fh;				# close fh at end of file
+					return ($text eq '') ? undef : $text;
+				}
+			}
+		}
 	};
 	$self->_push_iter($iter, $full_path);
 }
@@ -237,7 +256,7 @@ sub include_list {
 			# line is a string, return each complete line
 			for ($input[0]) {
 				last unless defined $_;				# skip undef lines
-				if (/ \G ( .*? \n | .+ ) /gcx) {
+				if (/ \G ( $NOT_EOL_RE* $EOL_RE | $NOT_EOL_RE+ ) /gcx) {
 					shift @input if pos == length;	# consumed all, drop it
 					return $1;
 				}
@@ -289,14 +308,15 @@ sub getline {
 		# continuation
 		my $line_nr = $top->line_nr( $top->line_nr + $top->line_inc );
 
-		# while line ends in \\, remove all blanks before it and \r \n after
-		# the line contains at most one \n, due to include_list() iterator
-		while ($text =~ s/ \s* \\ [\r\n]* \z / /x) {
-			my $next = $top->iter->();
-			$top->line_nr( $top->line_nr + $top->line_inc );
-			
-			defined($next) or last;		# no more input, ignore last \\
-			$text .= $next;
+		if ($self->config_line_continuation) {
+			# while line ends in \\, remove all blanks before it and \r \n after
+			while ($text =~ s/ \s* \\ $EOL_RE? \z / /x) {
+				my $next = $top->iter->();
+				$top->line_nr( $top->line_nr + $top->line_inc );
+				
+				defined($next) or last;		# no more input, ignore last \\
+				$text .= $next;
+			}
 		}
 		
 		# normalize eol
@@ -375,6 +395,24 @@ sub line_stream {
 	return Asm::Preproc::Stream->new(sub {$self->getline});
 }
 #------------------------------------------------------------------------------
+
+=head1 CONFIGURATION
+
+The preprocessor can be configured to read different assembly languages by
+subclassing. Each of the C<config_xxx> below return a default value and
+can be overloaded to change the default behaviour.
+
+=head2 config_line_continuation 
+
+(default = TRUE) Set to true to join lines ending with backslash (C<\>) 
+with the following line.
+
+=cut
+
+#------------------------------------------------------------------------------
+sub config_line_continuation { 1 }
+#------------------------------------------------------------------------------
+
 
 =head1 PREPROCESSING
 

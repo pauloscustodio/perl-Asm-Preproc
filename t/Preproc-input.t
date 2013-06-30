@@ -65,7 +65,8 @@ $pp->include_list(1,2,"3\r\r\n4\r");
 test_getline("1\n", 	"-", 	1);
 test_getline("2\n", 	"-", 	2);
 test_getline("3\n", 	"-", 	3);
-test_getline("4\n", 	"-", 	4);
+test_getline("\n",	 	"-", 	4);
+test_getline("4\n", 	"-", 	5);
 test_eof();
 
 isa_ok $pp = Asm::Preproc->new, 'Asm::Preproc';
