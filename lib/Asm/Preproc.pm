@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.10 2013/06/30 22:56:02 Paulo Exp $
+# $Id: Preproc.pm,v 1.11 2013/06/30 23:32:55 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -188,7 +188,7 @@ sub include {
 	my $text = "";
 	my $iter = sub { 
 		for (;;) {
-			return undef unless $fh;
+			return unless $fh;
 			for ($text) {
 				# return next line
 				if (/ \G ( $NOT_EOL_RE* $EOL_RE ) /gcx) {
@@ -239,7 +239,7 @@ sub include_list {
 	# create a new iterator to read text lines from iterators or strings
 	my $iter = sub {
 		while (1) {
-			return undef unless @input;
+			return unless @input;
 			
 			# call iterator to get first string, if any
 			if (ref $input[0]) {
@@ -294,7 +294,7 @@ sub getline {
 	my($self) = @_;
 
 	while (1) {
-		return undef unless @{$self->_stack};	# no more files
+		return unless @{$self->_stack};	# no more files
 		my $top = $self->_stack->[TOP];
 
 		# read line
@@ -326,23 +326,9 @@ sub getline {
 		my $line = Asm::Preproc::Line->new($text, $top->file, $line_nr);
 		
 		# check for pre-processor directives
-		if (my $include_file = $self->_match_include($line)) {
-			$self->include($include_file, $line);
-			next;		# get next line
-		}
-		elsif (my($line_nr, $line_inc, $file) = $self->_match_line($line)) {
-			defined($line_nr) 	and $top->line_nr( $line_nr );
-			defined($line_inc) 	?   $top->line_inc( $line_inc )
-								:   $top->line_inc( 1 );
-			defined($file) 		and $top->file( $file );
-			
-			# next line in nr+inc
-			$top->line_nr( $top->line_nr - $top->line_inc );
-			next;		# get next line
-		}
-		elsif ($self->_match_ignore_line($line)) {
-			next;		# get next line
-		}
+		next if $self->_check_include($line);
+		next if $self->_check_line($line);
+		next if $self->_check_ignore_line($line);
 		
 		# return complete line
 		return $line;
@@ -404,17 +390,18 @@ sub config_include_re {
 	  /ix;
 }
 
-sub _match_include {
+sub _check_include {
 	my($self, $line) = @_;
 	my $re = $self->config_include_re;
-	if ($line->text =~ /$re/) {
-		return $1 if defined($1) && $1 ne '';
+	if (my($include_file) = $line->text =~ /$re/) {
+		if (defined($include_file) && $include_file ne '') {
+			$self->include($include_file, $line);
+			return 1;
+		}
 		$line->error("%include expects a file name\n");
-		return;
 	}
-	else {
-		return;
-	}
+	
+	return;			# not %include or no file
 }
 #------------------------------------------------------------------------------
 
@@ -442,19 +429,28 @@ sub config_line_re {
 	  /ix;
 }
 
-sub _match_line {
+sub _check_line {
 	my($self, $line) = @_;
-	my($line_nr, $line_inc, $file);
 	my $re = $self->config_line_re;
-	if (($line_nr, $line_inc, $file) = $line->text =~ /$re/) {
+	if (my($line_nr, $line_inc, $file) = $line->text =~ /$re/) {
+	
 		for ($line_nr, $line_inc, $file) {
 			$_ = undef if defined($_) && $_ eq '';	# make undef if ''
 		}
-		return ($line_nr, $line_inc, $file);
+		
+		my $top = $self->_stack->[TOP];
+		defined($line_nr) 	and $top->line_nr( $line_nr );
+		defined($line_inc) 	?   $top->line_inc( $line_inc )
+							:   $top->line_inc( 1 );
+		defined($file) 		and $top->file( $file );
+		
+		# next line in nr+inc
+		$top->line_nr( $top->line_nr - $top->line_inc );
+		
+		return 1;
 	}
-	else {
-		return;
-	}
+	
+	return;			# not %line
 }
 #------------------------------------------------------------------------------
 
@@ -472,7 +468,7 @@ sub config_ignore_line_re {
 	qr/ ^ \s* [\#\%\;] /ix;
 }
 
-sub _match_ignore_line {
+sub _check_ignore_line {
 	my($self, $line) = @_;
 	my $re = $self->config_ignore_line_re;
 	return $line->text =~ /$re/;
