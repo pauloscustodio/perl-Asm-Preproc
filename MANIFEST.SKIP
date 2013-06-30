@@ -2,7 +2,6 @@
 \.kpf$
 
 # Developper tools
-^tools\b
 ^TODO\.txt
 
 # temporary files
