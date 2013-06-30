@@ -41,6 +41,16 @@ test_getline("4\n", 	$file, 	4);
 test_eof();
 ok unlink($file), "unlink $file";
 
+# file with very big line (bigger than chunk)
+my $big_line = "x" x 16384 . "\n";
+write_file($file, $big_line . "y\n");
+isa_ok $pp = Asm::Preproc->new, 'Asm::Preproc';
+$pp->include($file);
+test_getline($big_line,	$file, 	1);
+test_getline("y\n", 	$file, 	2);
+test_eof();
+ok unlink($file), "unlink $file";
+
 # file with data, pass on constructor
 write_file($file, $input);
 isa_ok $pp = Asm::Preproc->new($file), 'Asm::Preproc';
