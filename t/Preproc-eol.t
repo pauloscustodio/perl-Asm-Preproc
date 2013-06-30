@@ -62,6 +62,7 @@ test_getline("7\n", 			$file, 	8);
 test_getline("8\\\n", 			$file, 	9);
 test_getline("9\n", 			$file, 	10);
 test_eof();
+ok unlink($file), "unlink $file";
 
 #------------------------------------------------------------------------------
 # do not line continuation
@@ -96,6 +97,6 @@ test_getline("7\n", 			$file, 	8);
 test_getline("8\\\n", 			$file, 	9);
 test_getline("9\\\n", 			$file, 	10);
 test_eof();
+ok unlink($file), "unlink $file";
 
-unlink($file);
 done_testing();
