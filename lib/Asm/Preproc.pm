@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.11 2013/06/30 23:32:55 Paulo Exp $
+# $Id: Preproc.pm,v 1.12 2013/06/30 23:49:14 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -19,7 +19,7 @@ use File::Spec;
 use Asm::Preproc::Line;
 use Asm::Preproc::Stream;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 #------------------------------------------------------------------------------
 
