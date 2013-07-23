@@ -1,5 +1,7 @@
 #!perl
 
+# $Id: Lexer-comments.t,v 1.6 2010/11/21 16:48:35 Paulo Exp $
+
 use strict;
 use warnings;
 
@@ -15,7 +17,7 @@ my $input = join '', @input;
 
 #------------------------------------------------------------------------------
 # test input from file
-my $file = temp_file();
+my $file = "$0.tmp"; $file =~ s/\\/\//g;
 
 # no file
 unlink($file);
@@ -38,16 +40,6 @@ test_getline("1\n", 	$file, 	1);
 test_getline("2\n", 	$file, 	2);
 test_getline("3\n", 	$file, 	3);
 test_getline("4\n", 	$file, 	4);
-test_eof();
-ok unlink($file), "unlink $file";
-
-# file with very big line (bigger than chunk)
-my $big_line = "x" x 16384 . "\n";
-write_file($file, $big_line . "y\n");
-isa_ok $pp = Asm::Preproc->new, 'Asm::Preproc';
-$pp->include($file);
-test_getline($big_line,	$file, 	1);
-test_getline("y\n", 	$file, 	2);
 test_eof();
 ok unlink($file), "unlink $file";
 
@@ -75,8 +67,7 @@ $pp->include_list(1,2,"3\r\r\n4\r");
 test_getline("1\n", 	"-", 	1);
 test_getline("2\n", 	"-", 	2);
 test_getline("3\n", 	"-", 	3);
-test_getline("\n",	 	"-", 	4);
-test_getline("4\n", 	"-", 	5);
+test_getline("4\n", 	"-", 	4);
 test_eof();
 
 isa_ok $pp = Asm::Preproc->new, 'Asm::Preproc';

@@ -1,3 +1,7 @@
+0.08	2013-07-23
+	Bug Fixes
+	* Revert to 0.06 - changes impacted CPU::Z80::Assembler.
+
 0.07	2013-07-16
 	New Features
 	* Parse different eol combinations in input file (\r, \n, \r\n, \n\r) and

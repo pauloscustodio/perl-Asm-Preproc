@@ -22,7 +22,7 @@ use Asm::Preproc::Stream;
 use Asm::Preproc::Line;
 use Asm::Preproc::Token;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 #------------------------------------------------------------------------------
 

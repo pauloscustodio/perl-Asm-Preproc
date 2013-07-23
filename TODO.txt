@@ -1,3 +1,24 @@
+- Reverted to 0.06; lexer already implemented in Parse::FSM, no need to 
+  implement again in Iterator::Simple::Lexer
+  Need to use Parse::FSM to simplify Asm::Preproc, not make it more complex
+  by re-implementing things as Iterator::Simple streams.
+
+- Removing of comments as lines to ignore is causing problems in CPU::Z80::Assembler 2.13
+- Use Object::Tiny instead of Class::XSAccessor
+- Lexer: what is the need for ()?
+- Lexer as Iterator::Simple::Iterator, use Template::Tiny
+
+- Lexer per input context?
+- Versions for different Z80 assemblers
+- Call assembler command line and replace file locations in error messages 
+  by original source files.
+- Tokenizer.
+- Generate .i file.
+- Define list of tokens
+- Stream with recursive roll-back possibility
+- include_list inherits location of previous level
+- need lexer object per stack level
+
 #------------------------------------------------------------------------------
 # TODO :
 # 	- macros; implies tokenizer
@@ -37,4 +58,184 @@ getline() :
 	
 gettoken() :
 	calls _gettoken(), ignores blanks
+
+
+---- test stack ----
+
+
+exit 0;
+
+
+#------------------------------------------------------------------------------
+# context stack
+isa_ok $in = Asm::Preproc::Input->new, 'Asm::Preproc::Input';
+$in->from_list(1..4);
+test_getline("1\n", 	"-", 	1);
+test_getline("2\n", 	"-", 	2);
+
+is $in->filename, "-";
+$in->filename("file");
+is $in->filename, "file";
+
+is $in->line_nr, 2;
+$in->line_nr(4);
+is $in->line_nr, 4;
+
+is $in->line_inc, 1;
+$in->line_inc(2);
+is $in->line_inc, 2;
+
+test_getline("3\n", 	"file",	6);
+test_getline("4\n", 	"file",	8);
+test_getline();
+
+$in->from_list(1..4);
+test_getline("1\n", 	"-", 	1);
+
+$in->from_list(11..14);
+$in->filename("F");
+
+test_getline("11\n", 	"F", 	1);
+test_getline("12\n", 	"F", 	2);
+test_getline("13\n", 	"F", 	3);
+test_getline("14\n", 	"F", 	4);
+
+test_getline("2\n", 	"-", 	2);
+test_getline("3\n", 	"-", 	3);
+test_getline("4\n", 	"-", 	4);
+test_getline();
+
+#------------------------------------------------------------------------------
+# one file to constructor, other included
+isa_ok $in = Asm::Preproc::Input->new('t/data/f02.asm'), 'Asm::Preproc::Input';
+$in->from_file('t/data/f01.asm');
+test_getline("hello\n",		't/data/f01.asm',	1);
+test_getline("world\n",		't/data/f02.asm',	1);
+test_getline();
+
+#------------------------------------------------------------------------------
+# recursive include
+isa_ok $in = Asm::Preproc::Input->new('t/data/f07.asm'), 'Asm::Preproc::Input';
+
+my $from_line = Asm::Preproc::Line->new("", "t/data/f08.asm", 1);
+eval { $in->from_file('t/data/f07.asm', $from_line) };
+is $@, "t/data/f08.asm(1) : error: %include loop\n",
+			"%include loop";
+
+eval { $in->from_file('t/data/f07.asm') };
+is $@, "error: %include loop\n",
+			"%include loop";
+
+ok unlink($file), "unlink $file";
+
+
+
+1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__END__
+
+use constant TOP 		=> -1;		# top of stack, i.e. current input file
+
+
+
+=cut
+
+# Asm::Preproc::Input::Context : current file being read
+use constant LINE_NR  => 2;
+use constant LINE_INC => 3;
+
+use Class::XSAccessor::Array {
+	class			=> 'Asm::Preproc::Input::Context',
+	accessors		=> {
+		iter		=> 0,			# iter() to read each line
+		filename	=> 1,			# file name
+		line_nr		=> LINE_NR,		# current line number
+		line_inc	=> LINE_INC,	# line number increment
+	},
+};
+
+sub Asm::Preproc::Input::Context::new {
+	my($class, @init) = @_;
+	return bless \@init, $class;
+}
+
+# attributes merged with base class Iterator::Simple::Lookahead
+use Class::XSAccessor {
+	accessors 		=> [
+		'_context_stack',		# stack of contexts
+	],
+};
+
+sub new {
+	my($class, $filename) = @_;
+	my $self = $class->SUPER::new();
+	$self->_context_stack([]);
+	$self->from_file($filename) if defined $filename;
+	return $self;
+}
+
+use overload (
+	'&{}'	=> sub { my($self) = @_; return sub { $self->next } },
+	'<>'	=> 'next',
+	'|'		=> 'filter',
+	fallback => 1,
+);
+
+#------------------------------------------------------------------------------
+
+=cut
+
+#------------------------------------------------------------------------------
+
+sub _make_method {
+	my($name) = @_;
+	return sub {
+		my($self, $value) = @_;
+		return unless @{$self->_context_stack};
+		if (@_ > 1) { $self->_context_stack->[TOP]->$name = $value }; 
+		return $self->_context_stack->[TOP]->$name;
+	};
+}
+
+*filename	= _make_method('filename');
+*line_nr	= _make_method('line_nr');
+*line_inc	= _make_method('line_inc');
+
+=head2 next
+
+Retrieves the next L<Asm::Preproc::Line|Asm::Preproc::Line> from the current 
+context, drops the context and continues with the previous on end of input.
+
+Returns C<undef> if all the contexts are exhausted.
+
+=cut
+
+#------------------------------------------------------------------------------
+
+sub next {
+	my($self) = @_;
+	while (@{$self->_context_stack}) {
+		my $line = $self->_context_stack->[TOP]->iter->();
+		return $line if defined $line;
+		pop @{$self->_context_stack};
+	}
+	return;
+}
 

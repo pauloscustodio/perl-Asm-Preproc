@@ -15,7 +15,7 @@ Asm::Preproc::Token - One token retrieved from the input
 use strict;
 use warnings;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use Data::Dump 'dump';
 use Asm::Preproc::Line;

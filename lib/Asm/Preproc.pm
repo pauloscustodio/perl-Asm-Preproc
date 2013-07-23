@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.12 2013/06/30 23:49:14 Paulo Exp $
+# $Id: Preproc.pm,v 1.7 2010/10/15 15:55:21 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -19,7 +19,7 @@ use File::Spec;
 use Asm::Preproc::Line;
 use Asm::Preproc::Stream;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 #------------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ our $VERSION = '0.07';
   
   my $iter = sub {return scalar <STDIN>};
   $pp->include_list($iter);
-  
+
   my $line = $pp->getline;     # isa Asm::Preproc::Line
   my $strm = $pp->line_stream; # isa Asm::Preproc::Stream
 
@@ -88,16 +88,12 @@ use Class::XSAccessor::Array {
 };
 
 use constant TOP 		=> -1;		# top of stack, i.e. current input file
-use constant BLOCK_SZ	=> 0x2000;	# amount of bytes to read at a time from file
 
-my $EOL_RE 		= qr/(?:\r\n|\n\r|\r|\n)/;
-my $NOT_EOL_RE 	= qr/[^\r\n]/;
-
-sub new { 
+sub new {
 	my($class, @files) = @_;
 	my $self = bless [
-				[],				# stack
-				[],				# path
+				[],			# stack
+				[],			# path
 		], $class;
 	$self->include($_) for reverse @files;
 	return $self;
@@ -126,30 +122,30 @@ sub add_path {
 	push @{$self->_path}, @dirs;
 }
 #------------------------------------------------------------------------------
-
+	
 =head2 path_search
-
+		
 Searches for the given file in the C<path> created by C<add_path>, returns 
 the first full path name where the file can be found.
-
+			
 Returns the input file name if the file is found in the current directory,
 or if it is not found in any of the C<path> directories.
 
 =cut
-
+			
 #------------------------------------------------------------------------------
 sub path_search {
 	my($self, $file) = @_;
-	
+												
 	return $file if -f $file;	# found
-	
+			
 	for my $dir (@{$self->_path}) {
 		my $full_path = File::Spec->catfile($dir, $file);
 		return $full_path if -f $full_path;
 	}
 	
 	return $file;				# not found
-}
+}										
 #------------------------------------------------------------------------------
 
 =head2 include
@@ -177,35 +173,20 @@ sub include {
 		($from_line || Asm::Preproc::Line->new)
 			->error("%include loop")
 	}
-	
-	# open the file in binary mode, to read different eol terminators
+
+	# open the file
 	open(my $fh, $full_path) or
 		($from_line || Asm::Preproc::Line->new)
 		->error("unable to open input file '$full_path'");
-	binmode($fh);
 	
-	# create a new iterator to read file lines in blocks
-	my $text = "";
+	# create a new iterator to read file lines
 	my $iter = sub { 
-		for (;;) {
-			return unless $fh;
-			for ($text) {
-				# return next line
-				if (/ \G ( $NOT_EOL_RE* $EOL_RE ) /gcx) {
-					return $1;
-				}
-			
-				# append a new chunk from file
-				$_ = substr($_, pos||0);		# drop matched text
-				my $num_read = read($fh, $_, BLOCK_SZ, length($_));
-				
-				# end of input
-				if ($num_read == 0) {
-					undef $fh;				# close fh at end of file
-					return ($text eq '') ? undef : $text;
-				}
-			}
-		}
+		return undef unless $fh;
+		my $text = <$fh>;
+		defined($text) and return $text;
+
+		undef $fh;				# close fh at end of file
+		return undef;
 	};
 	$self->_push_iter($iter, $full_path);
 }
@@ -239,7 +220,7 @@ sub include_list {
 	# create a new iterator to read text lines from iterators or strings
 	my $iter = sub {
 		while (1) {
-			return unless @input;
+			return undef unless @input;
 			
 			# call iterator to get first string, if any
 			if (ref $input[0]) {
@@ -256,7 +237,7 @@ sub include_list {
 			# line is a string, return each complete line
 			for ($input[0]) {
 				last unless defined $_;				# skip undef lines
-				if (/ \G ( $NOT_EOL_RE* $EOL_RE | $NOT_EOL_RE+ ) /gcx) {
+				if (/ \G ( .*? \n | .+ ) /gcx) {
 					shift @input if pos == length;	# consumed all, drop it
 					return $1;
 				}
@@ -294,7 +275,7 @@ sub getline {
 	my($self) = @_;
 
 	while (1) {
-		return unless @{$self->_stack};	# no more files
+		return undef unless @{$self->_stack};	# no more files
 		my $top = $self->_stack->[TOP];
 
 		# read line
@@ -308,27 +289,72 @@ sub getline {
 		# continuation
 		my $line_nr = $top->line_nr( $top->line_nr + $top->line_inc );
 
-		if ($self->config_line_continuation) {
 			# while line ends in \\, remove all blanks before it and \r \n after
-			while ($text =~ s/ \s* \\ $EOL_RE? \z / /x) {
+		# the line contains at most one \n, due to include_list() iterator
+		while ($text =~ s/ \s* \\ [\r\n]* \z / /x) {
 				my $next = $top->iter->();
 				$top->line_nr( $top->line_nr + $top->line_inc );
 				
 				defined($next) or last;		# no more input, ignore last \\
 				$text .= $next;
 			}
-		}
 		
 		# normalize eol
 		$text =~ s/ \s* \z /\n/x;		# any ending blanks replaced by \n
 
-		# line to be returned
+		# line to be returned, is used in %include below
 		my $line = Asm::Preproc::Line->new($text, $top->file, $line_nr);
 		
 		# check for pre-processor directives
-		next if $self->_check_include($line);
-		next if $self->_check_line($line);
-		next if $self->_check_ignore_line($line);
+		if ($text =~ /^ \s* [\#\%] /gcix) {
+			if ($text =~ / \G line /gcix) {
+				# %line n+m file
+				# #line n "file"
+				if ($text =~ / \G \s+ (\d+) /gcix) {	# line_nr
+					$top->line_nr( $1 );
+		
+					if ($text =~ / \G \+ (\d+) /gcix) {	# optional line_inc
+						$top->line_inc( $1 );
+					}
+					else {
+						$top->line_inc( 1 );
+	}
+
+					if ($text =~ / \G \s+ \"? ([^\"\s]+) \"? /gcix) {	# file
+						$top->file( $1 );
+					}
+
+					# next line in nr+inc
+					$top->line_nr( $top->line_nr - $top->line_inc );
+					next;		# get next line
+				}
+	}
+			elsif ($text =~ / \G include /gcix) {
+				# %include <file>
+				# #include 'file'
+				# %include "file"
+				# #include  file 
+				if ($text =~ / \G \s+	(?: \< ([^\>]+) \>  | 
+											\' ([^\']+) \'  | 
+											\" ([^\"]+) \"  |
+											   (\S+)
+										) /gcix) {
+					my $file = $1 || $2 || $3 || $4;	
+					$self->include($file, $line);
+					next;		# get next line
+		}
+				else {
+		$line->error("%include expects a file name\n");
+	}
+			}
+			else {
+				# ignore other unknown directives
+				next;		# get next line
+			}
+		}
+		else {
+			# TODO: macro expansion
+		}
 		
 		# return complete line
 		return $line;
@@ -347,131 +373,6 @@ return the result of C<getline> on each C<get> call.
 sub line_stream {
 	my($self) = @_;
 	return Asm::Preproc::Stream->new(sub {$self->getline});
-}
-#------------------------------------------------------------------------------
-
-=head1 CONFIGURATION
-
-The preprocessor can be configured to read different assembly languages by
-subclassing. Each of the C<config_xxx> below return a default value and
-can be overloaded to change the default behaviour.
-
-=head2 config_line_continuation 
-
-Set to true to join lines ending with backslash (C<\>) 
-with the following line.
-
-default = TRUE
-
-=cut
-
-#------------------------------------------------------------------------------
-sub config_line_continuation { 1 }
-#------------------------------------------------------------------------------
-
-=head2 config_include_re
-
-Regular expression to match an include preprocessor statement and return 
-$1 with the included filename. $1 may be undefined if the include statement
-is not followed by a file name.
-
-default = %include | #include 'FILE' | "FILE" | <FILE> | FILE 
-
-=cut
-
-#------------------------------------------------------------------------------
-sub config_include_re { 
-	qr/ ^ \s* [\#\%] INCLUDE 
-	    (?| \s* \< ([^\>\s]+) \>
-		  | \s* \' ([^\'\s]+) \'
-		  | \s* \" ([^\"\s]+) \"
-		  | \s+    (\S+)
-		  )?
-	  /ix;
-}
-
-sub _check_include {
-	my($self, $line) = @_;
-	my $re = $self->config_include_re;
-	if (my($include_file) = $line->text =~ /$re/) {
-		if (defined($include_file) && $include_file ne '') {
-			$self->include($include_file, $line);
-			return 1;
-		}
-		$line->error("%include expects a file name\n");
-	}
-	
-	return;			# not %include or no file
-}
-#------------------------------------------------------------------------------
-
-=head2 config_line_re
-
-Regular expression to match a line preprocessor statement and return 
-$1 with the new line number, $2 with the line increment, and
-$3 with the filename. All three results may be undefined, if the corresponding
-element is missing.
-
-default = %line | #line NN[+NN] 'FILE' | "FILE" | FILE 
-
-=cut
-
-#------------------------------------------------------------------------------
-sub config_line_re { 
-	qr/ ^ \s* [\#\%] LINE 
-	    (?: \s+ (\d+)					# line number
-		    (?: \s* \+ \s* (\d+) )?		# optional line increment
-			(?| \s+ \' ([^\'\s]+) \'	# file name
-			  | \s+ \" ([^\"\s]+) \"	# file name
-			  | \s+    (\S+)			# file name
-			)?							# optional file name
-		)?								# optional NN+NN FILE
-	  /ix;
-}
-
-sub _check_line {
-	my($self, $line) = @_;
-	my $re = $self->config_line_re;
-	if (my($line_nr, $line_inc, $file) = $line->text =~ /$re/) {
-	
-		for ($line_nr, $line_inc, $file) {
-			$_ = undef if defined($_) && $_ eq '';	# make undef if ''
-		}
-		
-		my $top = $self->_stack->[TOP];
-		defined($line_nr) 	and $top->line_nr( $line_nr );
-		defined($line_inc) 	?   $top->line_inc( $line_inc )
-							:   $top->line_inc( 1 );
-		defined($file) 		and $top->file( $file );
-		
-		# next line in nr+inc
-		$top->line_nr( $top->line_nr - $top->line_inc );
-		
-		return 1;
-	}
-	
-	return;			# not %line
-}
-#------------------------------------------------------------------------------
-
-=head2 config_ignore_line_re
-
-Regular expression to match a preprocessor statement to be ignored. Also
-used to ignore an all-comment line
-
-default = % | # | ;
-
-=cut
-
-#------------------------------------------------------------------------------
-sub config_ignore_line_re { 
-	qr/ ^ \s* [\#\%\;] /ix;
-}
-
-sub _check_ignore_line {
-	my($self, $line) = @_;
-	my $re = $self->config_ignore_line_re;
-	return $line->text =~ /$re/;
 }
 #------------------------------------------------------------------------------
 
@@ -524,7 +425,7 @@ Inspired in the Netwide Assembler, L<http://www.nasm.us/>
 
 =head1 LICENSE and COPYRIGHT
 
-Copyright (c) 2010-2013 Paulo Custodio.
+Copyright (c) 2010 Paulo Custodio.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

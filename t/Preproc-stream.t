@@ -1,5 +1,7 @@
 #!perl
 
+# $Id: Lexer-comments.t,v 1.6 2010/11/21 16:48:35 Paulo Exp $
+
 use strict;
 use warnings;
 
