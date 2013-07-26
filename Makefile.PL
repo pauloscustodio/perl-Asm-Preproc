@@ -20,6 +20,7 @@ WriteMakefile(
 		'File::Spec'					=> 0,
         'Test::More' 					=> 0.96,	# needs done_testing()
 		'Text::Template'				=> 1.45,
+ 		'Iterator::Simple::Lookahead'	=> 0.02,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => [ 'Asm-Preproc-*',

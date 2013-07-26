@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.7 2010/10/15 15:55:21 Paulo Exp $
+# $Id: Preproc.pm,v 1.14 2013/07/23 11:27:40 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -17,9 +17,9 @@ use strict;
 
 use File::Spec;
 use Asm::Preproc::Line;
-use Asm::Preproc::Stream;
+use Iterator::Simple::Lookahead;
 
-our $VERSION = '0.08';
+our $VERSION = '1.00';
 
 #------------------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ our $VERSION = '0.08';
   $pp->include_list($iter);
 
   my $line = $pp->getline;     # isa Asm::Preproc::Line
-  my $strm = $pp->line_stream; # isa Asm::Preproc::Stream
+  my $strm = $pp->line_stream; # isa Iterator::Simple::Lookahead
 
 =head1 DESCRIPTION
 
@@ -364,15 +364,15 @@ sub getline {
 
 =head2 line_stream
 
-Returns a L<Asm::Preproc::Stream|Asm::Preproc::Stream> object that will 
-return the result of C<getline> on each C<get> call.
+Returns a L<Iterator::Simple::Lookahead|Iterator::Simple::Lookahead> object that will 
+return the result of C<getline> on each C<next> call.
 
 =cut
 
 #------------------------------------------------------------------------------
 sub line_stream {
 	my($self) = @_;
-	return Asm::Preproc::Stream->new(sub {$self->getline});
+	return Iterator::Simple::Lookahead->new(sub {$self->getline});
 }
 #------------------------------------------------------------------------------
 

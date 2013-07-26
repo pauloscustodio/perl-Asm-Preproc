@@ -2,7 +2,6 @@ Changes
 lib/Asm/Preproc.pm
 lib/Asm/Preproc/Lexer.pm
 lib/Asm/Preproc/Line.pm
-lib/Asm/Preproc/Stream.pm
 lib/Asm/Preproc/Token.pm
 Makefile.PL
 MANIFEST
@@ -29,7 +28,6 @@ t/Preproc-include.t
 t/Preproc-input.t
 t/Preproc-line.t
 t/Preproc-stream.t
-t/Stream.t
 t/Token-error.t
 t/Token-new.t
 t/utils.pl

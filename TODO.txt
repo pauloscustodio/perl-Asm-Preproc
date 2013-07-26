@@ -1,21 +1,19 @@
+- Use Parse::FSM
+
 - Reverted to 0.06; lexer already implemented in Parse::FSM, no need to 
   implement again in Iterator::Simple::Lexer
   Need to use Parse::FSM to simplify Asm::Preproc, not make it more complex
   by re-implementing things as Iterator::Simple streams.
 
 - Removing of comments as lines to ignore is causing problems in CPU::Z80::Assembler 2.13
-- Use Object::Tiny instead of Class::XSAccessor
-- Lexer: what is the need for ()?
-- Lexer as Iterator::Simple::Iterator, use Template::Tiny
 
-- Lexer per input context?
+
 - Versions for different Z80 assemblers
 - Call assembler command line and replace file locations in error messages 
   by original source files.
 - Tokenizer.
 - Generate .i file.
 - Define list of tokens
-- Stream with recursive roll-back possibility
 - include_list inherits location of previous level
 - need lexer object per stack level
 

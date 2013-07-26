@@ -1,4 +1,4 @@
-# $Id: Lexer.pm,v 1.3 2010/10/15 15:55:26 Paulo Exp $
+# $Id: Lexer.pm,v 1.5 2013/07/23 11:27:40 Paulo Exp $
 
 package Asm::Preproc::Lexer;
 
@@ -6,7 +6,7 @@ package Asm::Preproc::Lexer;
 
 =head1 NAME
 
-Asm::Preproc::Lexer - Lexer generator
+Asm::Preproc::Lexer - Iterator to split input in tokens
 
 =cut
 
@@ -17,18 +17,17 @@ use warnings;
 
 use Carp;
 use Text::Template 'fill_in_string';
-
-use Asm::Preproc::Stream;
 use Asm::Preproc::Line;
 use Asm::Preproc::Token;
 
-our $VERSION = '0.08';
+our $VERSION = '1.00';
 
 #------------------------------------------------------------------------------
 
 =head1 SYNOPSIS
 
   use Asm::Preproc::Lexer;
+
   my @tokens = (
      BLANKS  => qr/\s+/,       sub {()},
      COMMENT => [qr/\/\*/, qr/\*\//],
@@ -42,24 +41,42 @@ our $VERSION = '0.08';
                                      [$type, $value] },
      SYM     => qr/(.)/,       sub { [$1, $1] },
   );
-  my $lex = Asm::Preproc::Lexer->new(@tokens);
+
+  my $lex = Asm::Preproc::Lexer->new;
+  $lex->make_lexer(@tokens);
+
   my $lex2 = $lex->clone;
-  $lex->from(sub {});          # read Asm::Preproc::Line from iterator
-  $lex->from(@lines);          # read Asm::Preproc::Line from list
-  my $token = $lex->get;       # isa Asm::Preproc::Token
+
+  $lex->from(sub {}, @lines);  # read Asm::Preproc::Line from iterator
+  my $token = $lex->next;      # isa Asm::Preproc::Token
+  my $token = $lex->();
 
 =head1 DESCRIPTION
 
-This module creates a tokenizer based on the specification given to the 
-C<new> constructor.
+This module implements a sub-class of 
+L<Iterator::Simple::Lookahead|Iterator::Simple::Lookahead>
+to read text from iterators and split the text in tokens,
+according to the specification given to 
+C<make_lexer> constructor.
+
+The objects are L<Iterator::Simple|Iterator::Simple> compatible, 
+i.e. they can be used as an argument to C<iter()>.
 
 The tokenizer reads L<Asm::Preproc::Line|Asm::Preproc::Line> objects and
 splits them in L<Asm::Preproc::Token|Asm::Preproc::Token> objects on each
-C<get> call. C<get> returns C<undef> on end of input.
+C<next> call. C<next> returns C<undef> on end of input.
 
 =head1 FUNCTIONS
 
 =head2 new
+
+Creates a new tokenizer object, subclass of 
+L<Iterator::Simple::Lookahead|Iterator::Simple::Lookahead>.
+
+C<make_lexer> must be called to create the tokenizer code before the
+iterator can be used.
+
+=head2 make_lexer
 
 Creates a new tokenizer object for the given token specification.
 Each token is specified by the following elements:
@@ -140,48 +157,45 @@ See see C<COMMENT> above for an example of usage.
 Creates a copy of this tokenizer object without compiling a new 
 lexing subroutine. The copied object has all pending input cleared.
 
-=head2 input
-
-L<Asm::Preproc::Stream|Asm::Preproc::Stream> object from which new lines
-to process are read.
-
 =cut
 
 #------------------------------------------------------------------------------
-use constant TEXT => 3;			# need to access as $self->[TEXT] to get pos()
-use Class::XSAccessor::Array {
-	accessors 		=> {
-		_lexer		=> 0,
-		input		=> 1,
-		_line		=> 2,		# current line being processed
-		_text		=> TEXT,	# text being parsed
-	},
+use base 'Iterator::Simple::Lookahead';
+use Class::XSAccessor {			# additional attributes
+	accessors 		=> [
+		'_lexer',				# lexer iterator
+		'_input',				# input iterator		
+		'_line',				# current line being processed
+		'_text',				# text being parsed
+	],
 };
 
 sub new { 
-	my($class, @tokens) = @_;
-	my $self = $class->_new(sub {undef});
-	$self->_lexer( $self->_make_lexer(@tokens) );
-	$self;
+	my($class) = @_;
+	return $class->_new( sub { return } );		# dummy lexer
 }
 
 sub clone {
 	my($self) = @_;
-	$self->_new($self->_lexer);
+	return ref($self)->_new( $self->_lexer );
 }
 
+# used by new and clone
 sub _new { 
 	my($class, $lexer) = @_;
-	return bless [
-					$lexer, 	 				# _lexer
-					Asm::Preproc::Stream->new,	# input
-					undef, "",					# _line, _rtext
-		], ref($class) || $class;
+	
+	my $self = $class->SUPER::new;		# init iterator
+	$self->_lexer( $lexer );
+	$self->_input( Iterator::Simple::Lookahead->new );
+	$self->_line( undef );
+	$self->_text( "" );
+	
+	return $self;
 };
 
 #------------------------------------------------------------------------------
 # compile the lexing subroutine
-sub _make_lexer {
+sub make_lexer {
 	my($self, @tokens) = @_;
 	@tokens or croak "tokens expected";
 	
@@ -253,7 +267,7 @@ sub _make_lexer {
 	sub {
 		my($self) = @_;
 
-		for ($self->[TEXT]) {
+		for ($self->{_text}) {
 			LINE:
 			while (1) {								# read lines
 				while ((pos()||0) >= length()) {	# last line consumed
@@ -343,16 +357,16 @@ END_CODE
 	my $lexer = eval $code;
 	$@ and croak "$code\n$@";
 	
-	return $lexer;
+	$self->_lexer( $lexer );
 }
 
 #------------------------------------------------------------------------------
-# get the next line from input, save in _line, _rtext
+# get the next line from _input, save in _line, _rtext
 sub _read_line {
 	my($self) = @_;
 	
 	# get one line
-	my $line = $self->input->get;
+	my $line = $self->_input->next;
 	my $text = "";				# default: no text to parse
 	
 	if (defined $line) {
@@ -363,7 +377,7 @@ sub _read_line {
 	}
 	
 	$self->_line( $line );		# line to return at each token
-	$self->[TEXT] = $text;		# text to parse
+	$self->{_text} = $text;		# text to parse - need to reset pos()
 	
 	return $line;
 }
@@ -392,39 +406,30 @@ already in the queue.
 =cut
 
 #------------------------------------------------------------------------------
-# my($self, @input) = @_;
-sub from { shift->input->unget(@_); }
-#------------------------------------------------------------------------------
-
-=head2 get
-
-Retrieves the next token from the input strean as a L<Asm::Preproc::Token|Asm::Preproc::Token> object. 
-
-Returns C<undef> on end of input.
-
-Dies with an error message indicating the location in the input if the 
-source does not match any of the tokens.
-
-=cut
-
-#------------------------------------------------------------------------------
-sub get { goto $_[0]->_lexer; }
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-
-=head2 stream
-
-Returns a L<Asm::Preproc::Stream|Asm::Preproc::Stream> object that will 
-return the result of C<get> on each call.
-
-=cut
-
-#------------------------------------------------------------------------------
-sub stream {
-	my($self) = @_;
-	return Asm::Preproc::Stream->new(sub {$self->get});
+sub from { 
+	my($self, @input) = @_;
+	$self->_input->unget(@input);
+	$self->unget( sub { $self->_lexer->($self) } );
 }
+#------------------------------------------------------------------------------
+
+=head2 peek
+
+Peek the Nth element from the stream, inherited from
+L<Iterator::Simple::Lookahead|Iterator::Simple::Lookahead>.
+
+=head2 next
+
+Retrieve the next token from the input strean as a 
+L<Asm::Preproc::Token|Asm::Preproc::Token> object, inherited from
+L<Iterator::Simple::Lookahead|Iterator::Simple::Lookahead>.
+
+=head1 AUTHOR, BUGS, SUPPORT, LICENSE, COPYRIGHT
+
+See L<Asm::Preproc|Asm::Preproc>.
+
+=cut
+
 #------------------------------------------------------------------------------
 
 1;
