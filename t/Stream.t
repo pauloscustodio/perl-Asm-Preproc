@@ -1,11 +1,13 @@
 #!perl
 
-# $Id: Stream.t,v 1.1 2010/09/10 20:45:56 Paulo Exp $
+# $Id: Stream.t,v 1.2 2010/10/12 21:18:13 Paulo Exp $
 
 use strict;
 use warnings;
 
 use Test::More;
+use Iterator::Simple qw( iter );
+
 use_ok 'Asm::Preproc::Stream';
 
 my $s;
@@ -76,7 +78,7 @@ sub t_get (@) {
 				sub {
 					my $ret = shift @d1; 
 					if ($ret && $ret == 5) {
-						$s->unget(1..3);
+						$s->unget(iter([1..3]));
 					}
 					return $ret;
 				}),
