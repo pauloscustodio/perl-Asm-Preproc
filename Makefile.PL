@@ -13,7 +13,8 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
 		'Carp'							=> 0,
-		'Class::XSAccessor::Array'		=> 1.08,
+		'Class::XSAccessor'				=> 1.18,
+		'Class::XSAccessor::Array'		=> 1.18,
 		'Data::Dump'					=> 1.17,
 		'File::Find'					=> 0,
 		'File::Slurp'					=> 9999.13,
