@@ -1,14 +1,12 @@
-- Use Parse::FSM
+- Use Parse::FSM, creating options for different types of input.
 
 - Reverted to 0.06; lexer already implemented in Parse::FSM, no need to 
   implement again in Iterator::Simple::Lexer
   Need to use Parse::FSM to simplify Asm::Preproc, not make it more complex
   by re-implementing things as Iterator::Simple streams.
 
-- Removing of comments as lines to ignore is causing problems in CPU::Z80::Assembler 2.13
-
-
 - Versions for different Z80 assemblers
+- Additional Z80 instructions from sjasmpp as macros to be used with any assembler
 - Call assembler command line and replace file locations in error messages 
   by original source files.
 - Tokenizer.

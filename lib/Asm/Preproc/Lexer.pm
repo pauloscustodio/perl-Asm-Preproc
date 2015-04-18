@@ -1,4 +1,4 @@
-# $Id: Lexer.pm,v 1.5 2013/07/23 11:27:40 Paulo Exp $
+# $Id: Lexer.pm,v 1.6 2013/07/26 01:57:26 Paulo Exp $
 
 package Asm::Preproc::Lexer;
 
@@ -20,7 +20,7 @@ use Text::Template 'fill_in_string';
 use Asm::Preproc::Line;
 use Asm::Preproc::Token;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 #------------------------------------------------------------------------------
 

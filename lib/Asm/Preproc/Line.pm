@@ -1,4 +1,4 @@
-# $Id: Line.pm,v 1.9 2013/07/23 11:27:40 Paulo Exp $
+# $Id: Line.pm,v 1.10 2013/07/26 01:57:26 Paulo Exp $
 
 package Asm::Preproc::Line;
 
@@ -15,7 +15,7 @@ Asm::Preproc::Line - One line of text retrieved from the input
 use strict;
 use warnings;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 #------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-# $Id: Preproc.pm,v 1.14 2013/07/23 11:27:40 Paulo Exp $
+# $Id: Preproc.pm,v 1.15 2013/07/26 01:57:26 Paulo Exp $
 
 package Asm::Preproc;
 
@@ -19,7 +19,7 @@ use File::Spec;
 use Asm::Preproc::Line;
 use Iterator::Simple::Lookahead;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 #------------------------------------------------------------------------------
 
