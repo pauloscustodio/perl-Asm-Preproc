@@ -7,6 +7,11 @@
 # temporary files
 \.tmp$
 
+\bMYMETA\.\w+$
+
+# .git
+\B\.git\b
+
 #!start included C:\Perl\lib\ExtUtils\MANIFEST.SKIP
 # Avoid version control files.
 \bRCS\b
