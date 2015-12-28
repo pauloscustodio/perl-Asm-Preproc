@@ -20,7 +20,7 @@ use Text::Template 'fill_in_string';
 use Asm::Preproc::Line;
 use Asm::Preproc::Token;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 #------------------------------------------------------------------------------
 
