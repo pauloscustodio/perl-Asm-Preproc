@@ -1,4 +1,3 @@
-.gitignore
 Changes
 lib/Asm/Preproc.pm
 lib/Asm/Preproc/Lexer.pm
