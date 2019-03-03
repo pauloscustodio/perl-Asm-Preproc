@@ -19,7 +19,7 @@ use File::Spec;
 use Asm::Preproc::Line;
 use Iterator::Simple::Lookahead;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 #------------------------------------------------------------------------------
 

@@ -15,7 +15,7 @@ Asm::Preproc::Line - One line of text retrieved from the input
 use strict;
 use warnings;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 #------------------------------------------------------------------------------
 
